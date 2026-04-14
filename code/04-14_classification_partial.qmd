@@ -207,7 +207,18 @@ For that, we will categorize **strength_gtex** into three classes based on quant
   - If strength_gtex > 66% quantile, then it becomes "High"  
   
 ```{r}
-weather_class 
+weather_class <- weather %>%
+  mutate(strength_gtex_class = cut_number(strength_gtex,
+                                    n = 3,
+                                    labels = c("Low",
+                                               "Medium",
+                                               "High")
+                                    )) %>%
+  dplyr::select(year, site,
+                strength_gtex,
+                strength_gtex_class,
+                everything()
+                )
 
 weather_class
 ```
@@ -215,7 +226,11 @@ weather_class
 Let's visualize our resulting categorical variable, first with boxplots.  
 
 ```{r}
-
+ggplot(data = weather_class,
+       aes(x = strength_gtex_class,
+           y = strength_gtex)
+           ) +
+  geom_jitter()
 
 ```
 
@@ -224,7 +239,8 @@ Then, with density plots.
 ```{r}
 ggplot(data = weather_class,
        aes(x = strength_gtex,
-           color = strength_gtex_class)) 
+           color = strength_gtex_class)) +
+  geom_density()
 ```
 
 # ML workflow  
@@ -242,8 +258,8 @@ set.seed(931735)
 
 # Setting split level  
 weather_split <- initial_split(weather_class, 
-                               prop = .7,
-                               strata = ...)
+                               prop = .7, 
+                               strata = strength_gtex_class)
 
 weather_split
 ```
@@ -274,7 +290,7 @@ ggplot() +
   geom_density(data = weather_test, 
                aes(x = strength_gtex),
                color = "blue") 
-  
+  facet_wrap(~strength_gtex_class)
 ```
 
 Now, we put our **test set** aside and continue with our **train set** for training.  
@@ -357,7 +373,7 @@ rf_spec <-
     # Specify the engine
     set_engine("ranger") %>%
     # Specifying mode  
-    set_mode()  
+    set_mode("classification")  
   
 rf_spec
 ```
@@ -437,7 +453,7 @@ rf_grid_result %>%
   labs(title = "accuracy")
 ```
 
-What tree_depth and min criterion values created highest accuracy?  
+What tree_depth and min criterion values created highest accuracy?  # the higher the better
 
 Now, let's look into roc-auc (higher is better):  
 
@@ -456,13 +472,13 @@ rf_grid_result %>%
   labs(title = "roc_auc")
 
 ```
-Let's select the best model below.
+Let's select the best model below. # the higher the better
 First, based on accuracy:
 
 ```{r}
 # Based on highest accuracy
 best_accuracy <- rf_grid_result %>%
-  select_best()
+  select_best(metric = "accuracy")
 
 best_accuracy
 
@@ -475,7 +491,7 @@ Now, let's select best based on roc-auc (higher is better):
 ```{r}
 # Based on highest roc_auc
 best_roc <- rf_grid_result %>%
-  select_best()
+  select_best(metric = "roc_auc")
 
 best_roc
 
@@ -498,10 +514,10 @@ final_spec <- rand_forest(trees = best_accuracy$trees,
                           mtry = best_accuracy$mtry) %>%
   # Specify the engine
   set_engine("ranger",
-             importance = "permutation"
+             importance = "permutation" # variable importance
              ) %>%
     # Specifying mode  
-  set_mode()
+  set_mode("classification")
   
 
 final_spec
