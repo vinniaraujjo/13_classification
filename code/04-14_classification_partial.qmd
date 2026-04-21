@@ -540,26 +540,37 @@ final_fit <- last_fit(final_spec,
 final_fit %>%
   collect_predictions()
 ```
+# 211 rows came from the test data
 
 ### Test set  
 Confusion matrix on **test set**:  
 ```{r}
-
+final_fit %>%
+  collect_predictions() %>%
+  conf_mat(truth = strength_gtex_class,
+           estimate = .pred_class) %>%
+  autoplot(type = "heatmap")
   
 ```
 
 Metrics on the **test set**:
 ```{r}
-
+final_fit %>%
+  collect_metrics()
 ```
+# Accuracy = The higher the better it is. How many rows model got right
+
 Let's hand-calculate accuracy:  
 ```{r}
 #  Numerator: number of correctly classified (the diagonal)
-numerator 
+numerator <- 41 + 34 + 29 
 
 # Denominator: number of all observations  
-denominator 
+denominator <- 41 + 20 + 15 + 
+  23 + 34 + 26 +
+  7 + 16 +29
 
+numerator / denominator
 ```
 
 Let's plot ROC on **test set**:  
@@ -570,9 +581,9 @@ final_fit %>%
             .pred_Low,
             .pred_Medium,
             .pred_High) %>%
-ggplot(aes(x = ..., 
-           y = ..., 
-           color = ...)) +
+ggplot(aes(x = 1 - specificity, 
+           y = sensitivity, 
+           color = .level)) +
   geom_line(size = 1.2) +
   geom_abline(linetype = "dashed") +
   coord_equal() +
@@ -599,10 +610,13 @@ final_spec %>%
                           weather_train)) %>%
   conf_mat(truth = strength_gtex_class,
            estimate = .pred_class
-          )
+          ) %>%
+  autoplot(type = "heatmap")
   
 ```
 
+# augument help to get predictions
+# high because we used train set
 
 Metrics on **train set** (for curiosity and compare to test set):  
 ```{r}
@@ -611,9 +625,13 @@ final_spec %>%
       data = bake(weather_prep, 
                   weather_train)) %>%
   augment(new_data = bake(weather_prep, 
-                          weather_train)) 
+                          weather_train)) %>%
+  accuracy(truth = strength_gtex_class,
+           estimate = .pred_class)
 
 ```
+# 1 because we get 100% all the values in the diagonal. They divided by themselves.
+
 How does metrics on test compare to metrics on train?  
 ROC plot for **train set**:  
 ```{r}
@@ -643,6 +661,8 @@ ggplot(aes(x = 1 - specificity,
   
 ```
 
+# A perfect model goes all the way until 1.00 for 100%. All three lines overlapping.
+
 ### Variable importance 
 
 The importance metric we are evaluating here is **permutation**. 
@@ -657,7 +677,7 @@ The variables with the **largest average decrease in accuracy** are considered *
 
 ```{r}
 final_spec %>%
-  fit(... ~ .,
+  fit(strength_gtex_class ~ .,
          data = bake(weather_prep, 
                      weather_train)) %>%
     vi() %>%
